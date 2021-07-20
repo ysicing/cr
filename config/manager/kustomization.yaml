@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/ysicing/cr
-  newTag: 0.1-20210720-aab6f88
+  newTag: 0.1.1-20210720-a2462cf

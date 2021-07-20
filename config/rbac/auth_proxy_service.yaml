@@ -2,8 +2,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: cr-controller-manager
-  name: cr-controller-manager-metrics-service
+    control-plane: cm
+    app: cr
+  name: cm-metrics-service
   namespace: system
 spec:
   ports:
@@ -11,4 +12,5 @@ spec:
     port: 8443
     targetPort: https
   selector:
-    control-plane: cr-controller-manager
+    control-plane: cm
+    app: cr

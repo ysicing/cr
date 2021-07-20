@@ -2,25 +2,29 @@
 #kind: Namespace
 #metadata:
 #  labels:
-#    control-plane: cr-controller-manager
+#    control-plane: cm
+#    app: cr
 #  name: system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cr-controller-manager
+  name: cm
   namespace: system
   labels:
-    control-plane: cr-controller-manager
+    control-plane: cm
+    app: cr
 spec:
   selector:
     matchLabels:
-      control-plane: cr-controller-manager
+      control-plane: cm
+      app: cr
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: cr-controller-manager
+        control-plane: cm
+        app: cr
     spec:
       securityContext:
         runAsNonRoot: true
@@ -52,5 +56,5 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
-      serviceAccountName: cr-controller-manager
+      serviceAccountName: cm
       terminationGracePeriodSeconds: 10
