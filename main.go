@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/klogr"
 	"math/rand"
@@ -31,11 +33,13 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	devopsv1beta1 "github.com/ysicing/apis/devops/v1beta1"
-	devopscontrollers "github.com/ysicing/controllers/devops"
+	devopsv1beta1 "github.com/ysicing/apis/tools/v1beta1"
+	devopscontrollers "github.com/ysicing/controllers/tools"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	//+kubebuilder:scaffold:imports
@@ -102,10 +106,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	cacher := mgr.GetCache()
+	nsInformer, err := cacher.GetInformerForKind(context.TODO(), corev1.SchemeGroupVersion.WithKind("Namespace"))
+	if err != nil {
+		panic(err)
+	}
+	nsLister := corelisters.NewNamespaceLister(nsInformer.(cache.SharedIndexInformer).GetIndexer())
+
 	if err = (&devopscontrollers.CRReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(agent),
+		NSLister: nsLister,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CR")
 		os.Exit(1)

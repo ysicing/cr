@@ -1,8 +1,0 @@
-apiVersion: devops.51talk.me/v1beta1
-kind: CR
-metadata:
-  name: cr-sample
-spec:
-  domain: hub.51talk.com
-  service-account: default
-  watch-namespace: all

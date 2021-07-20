@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package devops
+package tools
 
 import (
 	"path/filepath"
@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	devopsv1beta1 "github.com/ysicing/apis/devops/v1beta1"
+	devopsv1beta1 "github.com/ysicing/apis/tools/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 

@@ -5,7 +5,7 @@ metadata:
   name: cr-viewer-role
 rules:
 - apiGroups:
-  - devops.51talk.me
+  - tools.51talk.me
   resources:
   - crs
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - devops.51talk.me
+  - tools.51talk.me
   resources:
   - crs/status
   verbs:

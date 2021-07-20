@@ -28,10 +28,9 @@ type CRSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of CR. Edit cr_types.go to remove/update
 	Domain         string `json:"domain,omitempty"`
-	ServiceAccount string `json:"service_account,omitempty"`
-	WatchNamespace string `json:"watch_namespace,omitempty"`
+	ServiceAccount string `json:"sa,omitempty"`
+	WatchNamespace string `json:"watchns,omitempty"`
 }
 
 // CRStatus defines the observed state of CR
@@ -50,6 +49,15 @@ type CR struct {
 
 	Spec   CRSpec   `json:"spec,omitempty"`
 	Status CRStatus `json:"status,omitempty"`
+}
+
+func (cr *CR) Check() {
+	if len(cr.Spec.WatchNamespace) == 0 {
+		cr.Spec.WatchNamespace = "all"
+	}
+	if len(cr.Spec.ServiceAccount) == 0 {
+		cr.Spec.ServiceAccount = "default"
+	}
 }
 
 //+kubebuilder:object:root=true

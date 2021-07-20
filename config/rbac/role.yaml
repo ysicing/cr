@@ -7,7 +7,45 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - devops.51talk.me
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tools.51talk.me
   resources:
   - crs
   verbs:
@@ -19,13 +57,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - devops.51talk.me
+  - tools.51talk.me
   resources:
   - crs/finalizers
   verbs:
   - update
 - apiGroups:
-  - devops.51talk.me
+  - tools.51talk.me
   resources:
   - crs/status
   verbs:

@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: crs.devops.51talk.me
+  name: crs.tools.51talk.me
 spec:
-  group: devops.51talk.me
+  group: tools.51talk.me
   names:
     kind: CR
     listKind: CRList
@@ -37,11 +37,10 @@ spec:
             description: CRSpec defines the desired state of CR
             properties:
               domain:
-                description: Foo is an example field of CR. Edit cr_types.go to remove/update
                 type: string
-              service_account:
+              sa:
                 type: string
-              watch_namespace:
+              watchns:
                 type: string
             type: object
           status:
