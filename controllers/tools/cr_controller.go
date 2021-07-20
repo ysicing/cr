@@ -21,7 +21,6 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"fmt"
-	"github.com/ysicing/pkg/util/requeueduration"
 	"html/template"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,17 +32,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"math/rand"
 	"time"
 
 	crv1beta1 "github.com/ysicing/apis/tools/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	minRequeueDuration = 3 * time.Second
 )
 
 // CRReconciler reconciles a CR object
@@ -102,8 +96,6 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 		return ctrl.Result{}, nil
 	}
 
-	duration := &requeueduration.Duration{}
-
 	cr.Check()
 
 	if modified, err := r.updateSaSecrets(ctx, cr); err != nil {
@@ -114,12 +106,7 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 	if err = r.updateStatus(); err != nil {
 		return ctrl.Result{}, err
 	}
-	res = ctrl.Result{}
-	res.RequeueAfter, _ = duration.GetWithMsg()
-	if res.RequeueAfter > 0 && res.RequeueAfter < minRequeueDuration {
-		res.RequeueAfter = minRequeueDuration + time.Duration(rand.Int31n(2000))*time.Millisecond
-	}
-	return res, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *CRReconciler) updateSaSecrets(ctx context.Context, cr *crv1beta1.CR) (bool, error) {

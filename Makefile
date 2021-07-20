@@ -1,6 +1,12 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+BUILD_VERSION   ?= $(shell cat version.txt || echo "unknown")
+BUILD_DATE      = $(shell date "+%Y%m%d%H")
+COMMIT_SHA1     ?= $(shell git rev-parse --short HEAD || echo "unknown")
+IMG_VERSION ?= ${BUILD_VERSION}-${BUILD_DATE}-${COMMIT_SHA1}
+IMG ?= ghcr.io/ysicing/cr:${IMG_VERSION}
+kUBECFG ?= ~/.kube/config
+
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
@@ -69,20 +75,24 @@ docker-build: test ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
+docker: ## docker image with the manager.
+	docker build -t ${IMG} .
+	# docker push ${IMG}
+
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | kubectl apply --kubeconfig ${kUBECFG} -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | kubectl delete --kubeconfig ${kUBECFG} -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | kubectl apply --kubeconfig ${kUBECFG} -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete --kubeconfig ${kUBECFG} -f -
 
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen

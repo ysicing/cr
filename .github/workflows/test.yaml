@@ -1,0 +1,32 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.2.0
+
+      - name: check k8s
+        run: |
+          kubectl cluster-info
+          kubectl get storageclass standard
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: apply k8s
+        run: |
+          make
+          make install
+          make deploy
