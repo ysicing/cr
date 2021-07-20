@@ -14,3 +14,10 @@ spec:
   # watchns可选,默认all
   watchns: ddddd
 ```
+
+### Install
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ysicing/cr/master/hack/deploy/crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/ysicing/cr/master/hack/deploy/cr.yaml
+```

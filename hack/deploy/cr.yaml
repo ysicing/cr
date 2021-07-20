@@ -303,7 +303,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/ysicing/cr:0.1-20210720-5d6c5eb
+        image: ghcr.io/ysicing/cr:0.1-20210720-aab6f88
         livenessProbe:
           httpGet:
             path: /healthz

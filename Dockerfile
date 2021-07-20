@@ -24,4 +24,6 @@ WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532
 
+LABEL org.opencontainers.image.source = "https://github.com/ysicing/cr"
+
 ENTRYPOINT ["/manager"]
