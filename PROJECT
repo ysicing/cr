@@ -1,0 +1,17 @@
+domain: 51talk.me
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+projectName: cr
+repo: github.com/ysicing
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: 51talk.me
+  group: devops
+  kind: CR
+  path: github.com/ysicing/apis/devops/v1beta1
+  version: v1beta1
+version: "3"

@@ -1,0 +1,24 @@
+# permissions for end users to edit crs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cr-editor-role
+rules:
+- apiGroups:
+  - devops.51talk.me
+  resources:
+  - crs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - devops.51talk.me
+  resources:
+  - crs/status
+  verbs:
+  - get

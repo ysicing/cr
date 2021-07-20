@@ -1,0 +1,20 @@
+# permissions for end users to view crs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cr-viewer-role
+rules:
+- apiGroups:
+  - devops.51talk.me
+  resources:
+  - crs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - devops.51talk.me
+  resources:
+  - crs/status
+  verbs:
+  - get
