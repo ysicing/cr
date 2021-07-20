@@ -1,7 +1,7 @@
 
 # Image URL to use all building/pushing image targets
 BUILD_VERSION   ?= $(shell cat version.txt || echo "unknown")
-BUILD_DATE      = $(shell date "+%Y%m%d%H")
+BUILD_DATE      = $(shell date "+%Y%m%d")
 COMMIT_SHA1     ?= $(shell git rev-parse --short HEAD || echo "unknown")
 IMG_VERSION ?= ${BUILD_VERSION}-${BUILD_DATE}-${COMMIT_SHA1}
 IMG ?= ghcr.io/ysicing/cr:${IMG_VERSION}
@@ -95,6 +95,9 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete --kubeconfig ${kUBECFG} -f -
 
+gen: docker manifests kustomize ## Gen
+	$(KUSTOMIZE) build config/crd > hack/deploy/crd.yaml
+	$(KUSTOMIZE) build config/default > hack/deploy/cr.yaml
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
