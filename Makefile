@@ -76,8 +76,9 @@ docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
 docker: ## docker image with the manager.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	docker build -t ${IMG} .
-	# docker push ${IMG}
+	docker push ${IMG}
 
 ##@ Deployment
 
