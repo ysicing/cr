@@ -55,7 +55,7 @@ status:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: cr-cr-controller-manager
+  name: cr-cm
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -206,7 +206,7 @@ roleRef:
   name: cr-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: cr-cr-controller-manager
+  name: cr-cm
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -219,7 +219,7 @@ roleRef:
   name: cr-manager-role
 subjects:
 - kind: ServiceAccount
-  name: cr-cr-controller-manager
+  name: cr-cm
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -232,7 +232,7 @@ roleRef:
   name: cr-proxy-role
 subjects:
 - kind: ServiceAccount
-  name: cr-cr-controller-manager
+  name: cr-cm
   namespace: kube-system
 ---
 apiVersion: v1
@@ -258,8 +258,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    control-plane: cr-controller-manager
-  name: cr-cr-controller-manager-metrics-service
+    app: cr
+    control-plane: cm
+  name: cr-cm-metrics-service
   namespace: kube-system
 spec:
   ports:
@@ -267,24 +268,28 @@ spec:
     port: 8443
     targetPort: https
   selector:
-    control-plane: cr-controller-manager
+    app: cr
+    control-plane: cm
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    control-plane: cr-controller-manager
-  name: cr-cr-controller-manager
+    app: cr
+    control-plane: cm
+  name: cr-cm
   namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      control-plane: cr-controller-manager
+      app: cr
+      control-plane: cm
   template:
     metadata:
       labels:
-        control-plane: cr-controller-manager
+        app: cr
+        control-plane: cm
     spec:
       containers:
       - args:
@@ -303,7 +308,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: ghcr.io/ysicing/cr:0.1-20210720-aab6f88
+        image: registry.cn-beijing.aliyuncs.com/k7scn/cr:0.1.1-20210721-d9e2104
         livenessProbe:
           httpGet:
             path: /healthz
@@ -328,5 +333,5 @@ spec:
           allowPrivilegeEscalation: false
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: cr-cr-controller-manager
+      serviceAccountName: cr-cm
       terminationGracePeriodSeconds: 10

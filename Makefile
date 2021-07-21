@@ -4,7 +4,8 @@ BUILD_VERSION   ?= $(shell cat version.txt || echo "unknown")
 BUILD_DATE      = $(shell date "+%Y%m%d")
 COMMIT_SHA1     ?= $(shell git rev-parse --short HEAD || echo "unknown")
 IMG_VERSION ?= ${BUILD_VERSION}-${BUILD_DATE}-${COMMIT_SHA1}
-IMG ?= ghcr.io/ysicing/cr:${IMG_VERSION}
+IMG ?= registry.cn-beijing.aliyuncs.com/k7scn/cr:${IMG_VERSION}
+GHIMG ?= ghcr.io/ysicing/cr:${IMG_VERSION}
 kUBECFG ?= ~/.kube/config
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -79,6 +80,8 @@ docker: ## docker image with the manager.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	docker build -t ${IMG} .
 	docker push ${IMG}
+	docker tag ${IMG} ${GHIMG}
+	docker push ${GHIMG}
 
 ##@ Deployment
 
