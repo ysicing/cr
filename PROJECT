@@ -3,15 +3,15 @@ layout:
 - go.kubebuilder.io/v3
 multigroup: true
 projectName: cr
-repo: github.com/ysicing
+repo: github.com/ysicing/cr
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
   domain: 51talk.me
-  group: devops
+  group: tools
   kind: CR
-  path: github.com/ysicing/apis/devops/v1beta1
+  path: github.com/ysicing/cr/apis/tools/v1beta1
   version: v1beta1
 version: "3"

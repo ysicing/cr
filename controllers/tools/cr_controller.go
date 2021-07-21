@@ -34,7 +34,7 @@ import (
 	"k8s.io/klog/v2"
 	"time"
 
-	crv1beta1 "github.com/ysicing/apis/tools/v1beta1"
+	crv1beta1 "github.com/ysicing/cr/apis/tools/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -79,8 +79,6 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 		}
 	}()
 
-	klog.Infof("ns: %v", req.Namespace)
-
 	// Fetch CR
 	cr := &crv1beta1.CR{}
 	err = r.Get(ctx, req.NamespacedName, cr)
@@ -118,12 +116,16 @@ func (r *CRReconciler) updateSaSecrets(ctx context.Context, cr *crv1beta1.CR) (b
 	if cr.Spec.WatchNamespace == "all" {
 		for _, ns := range nsList {
 			klog.Infof("ns: %v, sa: %v", ns.Name, cr.Spec.ServiceAccount)
-			r.manageSA(ctx, ns.Name, cr)
+			if err := r.manageSA(ctx, ns.Name, cr); err != nil {
+				klog.Errorf("manage %s sa %v, err: %v", ns.Name, cr.Spec.ServiceAccount, err)
+			}
 		}
 	} else {
 		for _, ns := range strings.Split(cr.Spec.WatchNamespace, ",") {
 			klog.Infof("ns: %v, sa: %v", ns, cr.Spec.ServiceAccount)
-			r.manageSA(ctx, ns, cr)
+			if err := r.manageSA(ctx, ns, cr); err != nil {
+				klog.Errorf("manage %s sa %v, err: %v", ns, cr.Spec.ServiceAccount, err)
+			}
 		}
 	}
 	return true, nil
@@ -188,7 +190,7 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 				klog.Errorf("failed to get sa %v: %v", secretKey.Name, err)
 				continue
 			}
-			secret = nil
+			// secret = nil
 		}
 		secret = &corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -242,7 +244,9 @@ func parse(domain, user, pass string) string {
 		CRAUTH: B64EnCode(fmt.Sprintf("%v:%v", user, pass)),
 	}
 	t, _ := template.New("configjson").Parse(dockerconfigjson)
-	t.Execute(&b, j)
+	if err := t.Execute(&b, j); err != nil {
+		return ""
+	}
 	return b.String()
 }
 

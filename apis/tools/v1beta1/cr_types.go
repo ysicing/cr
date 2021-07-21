@@ -39,6 +39,8 @@ type CRStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
+//+genclient
+//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -60,6 +62,7 @@ func (cr *CR) Check() {
 	}
 }
 
+//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 //+kubebuilder:object:root=true
 
 // CRList contains a list of CR

@@ -56,18 +56,23 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+lint: ## Run go lint against code.
+	golangci-lint run  ./...
+
+style: fmt vet lint ## code style
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-test: manifests generate fmt vet ## Run tests.
+test: manifests generate style## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
 
 ##@ Build
 
-build: generate fmt vet ## Build manager binary.
+build: generate style## Build manager binary.
 	go build -o bin/manager main.go
 
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate style## Run a controller from your host.
 	go run ./main.go
 
 docker-build: test ## Build docker image with the manager.
@@ -98,7 +103,10 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete --kubeconfig ${kUBECFG} -f -
 
-gen: docker manifests kustomize ## Gen
+client: ## Gen Client Code
+	hack/codegen.sh
+
+gen: style docker manifests kustomize client ## Gen
 	$(KUSTOMIZE) build config/crd > hack/deploy/crd.yaml
 	$(KUSTOMIZE) build config/default > hack/deploy/cr.yaml
 

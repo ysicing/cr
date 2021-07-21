@@ -1,4 +1,4 @@
-module github.com/ysicing
+module github.com/ysicing/cr
 
 go 1.16
 
