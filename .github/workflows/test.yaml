@@ -6,7 +6,6 @@ on:
     branches:
       - master
 
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -29,3 +28,5 @@ jobs:
         run: |
           make install
           make deploy
+          sleep 10
+          kubectl get pods -n kube-system -l control-plane=cm
