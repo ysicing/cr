@@ -90,18 +90,17 @@ docker: ## docker image with the manager.
 
 ##@ Deployment
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply --kubeconfig ${kUBECFG} -f -
+install: ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	kubectl apply --kubeconfig ${kUBECFG} -f hack/deploy/crd.yaml
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete --kubeconfig ${kUBECFG} -f -
+	kubectl delete --kubeconfig ${kUBECFG} -f hack/deploy/crd.yaml
 
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply --kubeconfig ${kUBECFG} -f -
+deploy: ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	kubectl apply --kubeconfig ${kUBECFG} -f hack/deploy/cr.yaml
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete --kubeconfig ${kUBECFG} -f -
+	kubectl delete --kubeconfig ${kUBECFG} -f hack/deploy/cr.yaml
 
 client: ## Gen Client Code
 	hack/codegen.sh
