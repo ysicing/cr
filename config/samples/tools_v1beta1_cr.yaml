@@ -1,9 +1,9 @@
 apiVersion: tools.51talk.me/v1beta1
 kind: CR
 metadata:
-  name: cr-sample
+  name: cr-sample-v2
 spec:
-  domain: root:pass:hub.baidu.com
+  domain: root:pass:hub.baidu.com,root:pass:hub.qq.com
   sa: default
   # watchns: all
   watchns: ddddd

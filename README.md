@@ -10,9 +10,9 @@ metadata:
 spec:
   domain: root:pass:hub.baidu.com
   # sa可选, 默认default
-  sa: default
+  # sa: default
   # watchns可选,默认all
-  watchns: ddddd
+  # watchns: all
 ```
 
 ### Install

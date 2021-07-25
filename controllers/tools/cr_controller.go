@@ -70,12 +70,12 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 	defer func() {
 		if err == nil {
 			if res.Requeue || res.RequeueAfter > 0 {
-				klog.Infof("Finished syncing CR %s, cost %v, result: %v", req, time.Since(startTime), res)
+				klog.Infof("Finished syncing CR %v, cost %v, result: %v", req, time.Since(startTime), res)
 			} else {
-				klog.Infof("Finished syncing CR %s, cost %v", req, time.Since(startTime))
+				klog.Infof("Finished syncing CR %v, cost %v", req, time.Since(startTime))
 			}
 		} else {
-			klog.Errorf("Failed syncing CR %s: %v", req, err)
+			klog.Errorf("Failed syncing CR %v: %v", req, err)
 		}
 	}()
 
@@ -89,7 +89,7 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 		cr = nil
 	}
 
-	// if ns exist
+	// if cr not exist
 	if cr == nil {
 		return ctrl.Result{}, nil
 	}
@@ -115,14 +115,14 @@ func (r *CRReconciler) updateSaSecrets(ctx context.Context, cr *crv1beta1.CR) (b
 
 	if cr.Spec.WatchNamespace == "all" {
 		for _, ns := range nsList {
-			klog.Infof("ns: %v, sa: %v", ns.Name, cr.Spec.ServiceAccount)
+			klog.V(5).Infof("ns: %v, sa: %v", ns.Name, cr.Spec.ServiceAccount)
 			if err := r.manageSA(ctx, ns.Name, cr); err != nil {
 				klog.Errorf("manage %s sa %v, err: %v", ns.Name, cr.Spec.ServiceAccount, err)
 			}
 		}
 	} else {
 		for _, ns := range strings.Split(cr.Spec.WatchNamespace, ",") {
-			klog.Infof("ns: %v, sa: %v", ns, cr.Spec.ServiceAccount)
+			klog.V(5).Infof("ns: %v, sa: %v", ns, cr.Spec.ServiceAccount)
 			if err := r.manageSA(ctx, ns, cr); err != nil {
 				klog.Errorf("manage %s sa %v, err: %v", ns, cr.Spec.ServiceAccount, err)
 			}
@@ -198,8 +198,12 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretKey.Name,
+				Name:      fmt.Sprintf("cr-%v", secretKey.Name),
 				Namespace: secretKey.Namespace,
+				Labels: map[string]string{
+					"tools.51talk.me/component": "cr",
+					"owner":                     cr.Name,
+				},
 			},
 			StringData: map[string]string{
 				".dockerconfigjson": parse(info[2], info[0], info[1]),
@@ -207,9 +211,17 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 			Type: corev1.SecretTypeDockerConfigJson,
 		}
 		if err := r.Create(ctx, secret); err != nil {
-			klog.Errorf("failed to create sa %v, err: %v", secretKey.Name, err)
+			if !errors.IsAlreadyExists(err) {
+				klog.Errorf("failed to create sa %v, err: %v", secretKey.Name, err)
+				r.Recorder.Event(cr, corev1.EventTypeWarning, "Error", fmt.Sprintf("add %v secrets, err: %v", secretKey.Name, err))
+
+			} else {
+				klog.Infof("docker secret %v exist", secretKey.Name)
+				r.Recorder.Event(cr, corev1.EventTypeWarning, "Exist", err.Error())
+			}
 			continue
 		}
+		r.Recorder.Event(cr, corev1.EventTypeNormal, "Success", fmt.Sprintf("add %v secrets", secretKey.Name))
 		res = append(res, corev1.LocalObjectReference{
 			Name: secretKey.Name,
 		})
