@@ -288,13 +288,13 @@ func (e *nsEventHandler) Generic(evt event.GenericEvent, q workqueue.RateLimitin
 
 func NsShouldRunCR(ns *corev1.Namespace, cr *crv1beta1.CR) (bool, error) {
 	// 检查是否需要配置cr
-	//if ns.Annotations == nil {
-	//	return true, nil
-	//}
-	//key := fmt.Sprintf("cr-%v", cr.Name)
-	//if ns.Annotations[key] == "init" {
-	//	return false, nil
-	//}
+	if ns.Annotations == nil {
+		return true, nil
+	}
+	key := fmt.Sprintf("cr-%v", cr.Name)
+	if value, ok := ns.Annotations[key]; ok && value == "init" {
+		return false, nil
+	}
 	return true, nil
 }
 
