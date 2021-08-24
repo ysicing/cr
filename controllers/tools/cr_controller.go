@@ -25,7 +25,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"strings"
 
@@ -81,17 +87,8 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 
 	// Fetch CR
 	cr := &crv1beta1.CR{}
-	err = r.Get(ctx, req.NamespacedName, cr)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return ctrl.Result{}, fmt.Errorf("failed to get cr %s: %v", req.NamespacedName.Name, err)
-		}
-		cr = nil
-	}
-
-	// if cr not exist
-	if cr == nil {
-		return ctrl.Result{}, nil
+	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	cr.Check()
@@ -235,9 +232,69 @@ func (r *CRReconciler) updateStatus() error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CRReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	c, err := controller.New("cr", mgr, controller.Options{
+		Reconciler: r,
+	})
+	if err != nil {
+		return err
+	}
+	err = c.Watch(&source.Kind{Type: &corev1.Namespace{}}, &nsEventHandler{reader: mgr.GetCache()})
+	if err != nil {
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&crv1beta1.CR{}).
 		Complete(r)
+}
+
+type nsEventHandler struct {
+	reader client.Reader
+}
+
+func (e *nsEventHandler) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	crList := &crv1beta1.CRList{}
+	err := e.reader.List(context.TODO(), crList)
+	if err != nil {
+		klog.V(6).Infof("Error enqueueing ns list: %v", err)
+		return
+	}
+
+	ns := evt.Object.(*corev1.Namespace)
+	klog.V(6).Infof("add new ns: %v", ns.Name)
+	for index, cr := range crList.Items {
+		should, err := NsShouldRunCR(ns, &crList.Items[index])
+		if err != nil {
+			continue
+		}
+		if should {
+			klog.V(6).Infof("new ns: %s triggers CR %s/%s to reconcile.", ns.Name, cr.GetNamespace(), cr.GetName())
+			q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      cr.GetName(),
+				Namespace: cr.GetNamespace(),
+			}})
+		}
+	}
+}
+
+func (e *nsEventHandler) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+}
+
+func (e *nsEventHandler) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+}
+
+func (e *nsEventHandler) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+}
+
+func NsShouldRunCR(ns *corev1.Namespace, cr *crv1beta1.CR) (bool, error) {
+	// 检查是否需要配置cr
+	//if ns.Annotations == nil {
+	//	return true, nil
+	//}
+	//key := fmt.Sprintf("cr-%v", cr.Name)
+	//if ns.Annotations[key] == "init" {
+	//	return false, nil
+	//}
+	return true, nil
 }
 
 type ConfigJson struct {
