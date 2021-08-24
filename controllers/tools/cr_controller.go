@@ -58,6 +58,7 @@ type CRReconciler struct {
 //+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=create;update;patch;get;list;watch
 //+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=create;update;patch;get;list;watch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=tools.51talk.me,resources=crs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=tools.51talk.me,resources=crs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=tools.51talk.me,resources=crs/finalizers,verbs=update

@@ -113,6 +113,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - namespaces
   verbs:
   - get
@@ -308,7 +320,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: registry.cn-beijing.aliyuncs.com/k7scn/cr:0.2.0-20210824-57c50b2
+        image: registry.cn-beijing.aliyuncs.com/k7scn/cr:0.2.1-20210824-bbc948e
         livenessProbe:
           httpGet:
             path: /healthz
