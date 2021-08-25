@@ -17,21 +17,16 @@ limitations under the License.
 package tools
 
 import (
-	"bytes"
 	"context"
-	b64 "encoding/base64"
 	"fmt"
-	"html/template"
+	"github.com/ysicing/cr/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sync"
 
 	"strings"
 
@@ -94,42 +89,50 @@ func (r *CRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res ctr
 
 	cr.Check()
 
-	if modified, err := r.updateSaSecrets(ctx, cr); err != nil {
-		return ctrl.Result{}, err
-	} else if modified {
-		return ctrl.Result{}, nil
-	}
-	if err = r.updateStatus(); err != nil {
+	if err := r.syncSaSecrets(ctx, cr); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	r.updateStatus(cr)
+
 	return ctrl.Result{}, nil
 }
 
-func (r *CRReconciler) updateSaSecrets(ctx context.Context, cr *crv1beta1.CR) (bool, error) {
+func (r *CRReconciler) syncSaSecrets(ctx context.Context, cr *crv1beta1.CR) error {
+	r.Recorder.Event(cr, corev1.EventTypeNormal, "Syncing", "Syncing secrets")
 	nsList, err := r.NSLister.List(labels.Everything())
 	if err != nil {
-		return false, fmt.Errorf("list ns err: %v", err)
+		return fmt.Errorf("list ns err: %v", err)
 	}
-
+	var nss []string
 	if cr.Spec.WatchNamespace == "all" {
 		for _, ns := range nsList {
-			klog.V(5).Infof("ns: %v, sa: %v", ns.Name, cr.Spec.ServiceAccount)
-			if err := r.manageSA(ctx, ns.Name, cr); err != nil {
-				klog.Errorf("manage %s sa %v, err: %v", ns.Name, cr.Spec.ServiceAccount, err)
-			}
+			nss = append(nss, ns.Name)
 		}
 	} else {
-		for _, ns := range strings.Split(cr.Spec.WatchNamespace, ",") {
-			klog.V(5).Infof("ns: %v, sa: %v", ns, cr.Spec.ServiceAccount)
-			if err := r.manageSA(ctx, ns, cr); err != nil {
-				klog.Errorf("manage %s sa %v, err: %v", ns, cr.Spec.ServiceAccount, err)
-			}
-		}
+		nss = append(nss, strings.Split(cr.Spec.WatchNamespace, ",")...)
 	}
-	return true, nil
+	return r.sync(ctx, cr, nss)
 }
 
-func (r *CRReconciler) manageSA(ctx context.Context, ns string, cr *crv1beta1.CR) error {
+func (r *CRReconciler) sync(ctx context.Context, cr *crv1beta1.CR, nss []string) error {
+	var wg sync.WaitGroup
+	ch := make(chan bool, 5)
+	for _, ns := range nss {
+		wg.Add(1)
+		go r.manageSA(ctx, ns, cr, ch, &wg)
+	}
+	wg.Wait()
+	return nil
+}
+
+func (r *CRReconciler) manageSA(ctx context.Context, ns string, cr *crv1beta1.CR, ch chan bool, wg *sync.WaitGroup) {
+	defer func() {
+		wg.Done()
+		<-ch
+	}()
+
+	ch <- true
 	sa := &corev1.ServiceAccount{}
 	saKey := client.ObjectKey{
 		Name:      cr.Spec.ServiceAccount,
@@ -138,7 +141,8 @@ func (r *CRReconciler) manageSA(ctx context.Context, ns string, cr *crv1beta1.CR
 	err := r.Get(ctx, saKey, sa)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to get sa %v: %v", saKey.Name, err)
+			klog.Errorf("failed to get sa %v: %v", saKey.Name, err)
+			return
 		}
 		sa = nil
 	}
@@ -156,19 +160,19 @@ func (r *CRReconciler) manageSA(ctx context.Context, ns string, cr *crv1beta1.CR
 			ImagePullSecrets: ips,
 		}
 		if err := r.Create(ctx, sa); err != nil {
-			return fmt.Errorf("failed to create sa %v, err: %v", saKey.Name, err)
+			klog.Errorf("failed to create sa %v, err: %v", saKey.Name, err)
+			return
 		}
-		return nil
+		return
 	}
 
 	if len(ips) > 0 {
 		sa.ImagePullSecrets = ips
 		if err := r.Update(ctx, sa); err != nil {
-			return fmt.Errorf("failed to update sa %v, err: %v", saKey.Name, err)
+			klog.Errorf("failed to update sa %v, err: %v", saKey.Name, err)
+			return
 		}
 	}
-
-	return nil
 }
 
 func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1beta1.CR) (res []corev1.LocalObjectReference) {
@@ -188,7 +192,6 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 				klog.Errorf("failed to get sa %v: %v", secretKey.Name, err)
 				continue
 			}
-			// secret = nil
 		}
 		secret = &corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -204,7 +207,7 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 				},
 			},
 			StringData: map[string]string{
-				".dockerconfigjson": parse(info[2], info[0], info[1]),
+				".dockerconfigjson": util.GenDockerConfigJSON(info[2], info[0], info[1]),
 			},
 			Type: corev1.SecretTypeDockerConfigJson,
 		}
@@ -213,9 +216,6 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 				klog.Errorf("failed to create sa %v, err: %v", secretKey.Name, err)
 				r.Recorder.Event(cr, corev1.EventTypeWarning, "Error", fmt.Sprintf("add %v secrets, err: %v", secretKey.Name, err))
 
-			} else {
-				klog.Infof("docker secret %v exist", secretKey.Name)
-				r.Recorder.Event(cr, corev1.EventTypeWarning, "Exist", err.Error())
 			}
 			continue
 		}
@@ -227,14 +227,15 @@ func (r *CRReconciler) manageCrSecrets(ctx context.Context, ns string, cr *crv1b
 	return
 }
 
-func (r *CRReconciler) updateStatus() error {
-	return nil
+func (r *CRReconciler) updateStatus(cr *crv1beta1.CR) {
+	r.Recorder.Event(cr, corev1.EventTypeNormal, "Synced", "Successfully sync secrets")
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CRReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	c, err := controller.New("cr", mgr, controller.Options{
-		Reconciler: r,
+		Reconciler:              r,
+		MaxConcurrentReconciles: 3,
 	})
 	if err != nil {
 		return err
@@ -247,92 +248,3 @@ func (r *CRReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&crv1beta1.CR{}).
 		Complete(r)
 }
-
-type nsEventHandler struct {
-	reader client.Reader
-}
-
-func (e *nsEventHandler) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	crList := &crv1beta1.CRList{}
-	err := e.reader.List(context.TODO(), crList)
-	if err != nil {
-		klog.V(6).Infof("Error enqueueing ns list: %v", err)
-		return
-	}
-
-	ns := evt.Object.(*corev1.Namespace)
-	klog.V(6).Infof("add new ns: %v", ns.Name)
-	for index, cr := range crList.Items {
-		should, err := NsShouldRunCR(ns, &crList.Items[index])
-		if err != nil {
-			continue
-		}
-		if should {
-			klog.V(6).Infof("new ns: %s triggers CR %s/%s to reconcile.", ns.Name, cr.GetNamespace(), cr.GetName())
-			q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-				Name:      cr.GetName(),
-				Namespace: cr.GetNamespace(),
-			}})
-		}
-	}
-}
-
-func (e *nsEventHandler) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-}
-
-func (e *nsEventHandler) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-}
-
-func (e *nsEventHandler) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-}
-
-func NsShouldRunCR(ns *corev1.Namespace, cr *crv1beta1.CR) (bool, error) {
-	// 检查是否需要配置cr
-	if ns.Annotations == nil {
-		return true, nil
-	}
-	key := fmt.Sprintf("cr-%v", cr.Name)
-	if value, ok := ns.Annotations[key]; ok && value == "init" {
-		return false, nil
-	}
-	return true, nil
-}
-
-type ConfigJson struct {
-	CRHost string
-	CRUSER string
-	CRPASS string
-	CRAUTH string
-}
-
-func parse(domain, user, pass string) string {
-	var b bytes.Buffer
-	j := ConfigJson{
-		CRHost: domain,
-		CRUSER: user,
-		CRPASS: B64EnCode(pass),
-		CRAUTH: B64EnCode(fmt.Sprintf("%v:%v", user, pass)),
-	}
-	t, _ := template.New("configjson").Parse(dockerconfigjson)
-	if err := t.Execute(&b, j); err != nil {
-		return ""
-	}
-	return b.String()
-}
-
-// B64EnCode base64加密
-func B64EnCode(code string) string {
-	return b64.StdEncoding.EncodeToString([]byte(code))
-}
-
-const dockerconfigjson = `
-{
-  "auths": {
-    "{{.CRHost}}": {
-      "username": "{{.CRUSER}}",
-      "password": "{{.CRPASS}}",
-      "auth": "{{.CRAUTH}}"
-    }
-  }
-}
-`

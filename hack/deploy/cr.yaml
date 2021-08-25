@@ -320,7 +320,7 @@ spec:
         - --leader-elect
         command:
         - /manager
-        image: registry.cn-beijing.aliyuncs.com/k7scn/cr:0.2.1-20210824-bbc948e
+        image: registry.cn-beijing.aliyuncs.com/k7scn/cr:0.2.2-20210825-1cc2f6c
         livenessProbe:
           httpGet:
             path: /healthz
